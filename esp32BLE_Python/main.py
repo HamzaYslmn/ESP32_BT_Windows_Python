@@ -64,6 +64,7 @@ async def main():
         return
     try:
         ser = serial.Serial(port, BAUDRATE)
+        console.clear()
         console.print(f"[green]Connected to {ser.name} at {ser.baudrate} baud[/]\n")
         console.print("[yellow]Type 'keyboard_mode' to enter keyboard listening mode.[/]")
         await asyncio.gather(read_from_port(ser), main_menu(ser))
