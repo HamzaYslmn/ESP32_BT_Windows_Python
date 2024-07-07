@@ -40,21 +40,47 @@ async def read_from_port(ser):
                 console.print(f"[rgb(50,240,160)]{timestamp} - {response}[/]")
         await asyncio.sleep(0.0001)
 
-async def main_menu(ser):
+async def terminal_mode(ser):
+    console.print("[green]Entering Terminal Mode... write 'esc' to return to the main menu.[/]")
     while True:
         command = await asyncio.to_thread(input, "")
-        if command == "cls":
-            console.clear()
-        elif command == "latency_test":
-            await latency_test(ser)
-        elif command == "mbps_test":
-            await mbps_test(ser)
-        elif command == "keyboard_mode":
+        if command == "esc":
+            break
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f")[:-3]
+        console.print(f"[rgb(240,160,255)]{timestamp} - {command}[/]")
+        ser.write((command + '\n').encode('utf-8'))
+    console.print("[yellow]Returning to main menu...[/]")
+
+async def main_menu(ser):
+    while True:
+        console.print("\nMain Menu:")
+        console.print("1 - Terminal Mode")
+        console.print("2 - Keyboard Mode")
+        console.print("3 - Mbps Test")
+        console.print("4 - Latency Test")
+        console.print("Press 'Enter' to clear the terminal\n")
+
+        command = await asyncio.to_thread(input, "Select a mode: ")
+        
+        if command == "1":
+            await terminal_mode(ser)
+
+        elif command == "2":
             await keyboard_listener(ser)
+
+        elif command == "3":
+            await mbps_test(ser)
+
+        elif command == "4":
+            await latency_test(ser)
+
+        elif command == "":
+            console.clear()
+
         else:
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f")[:-3]
-            console.print(f"[rgb(240,160,255)]{timestamp} - {command}[/]")
-            ser.write((command + '\n').encode('utf-8'))
+            console.print("[red]Invalid selection, please try again.[/]")
+            await asyncio.sleep(1)
+            console.clear()
 
 async def main():
     port_list = list_ports()
@@ -66,7 +92,6 @@ async def main():
         ser = serial.Serial(port, BAUDRATE)
         console.clear()
         console.print(f"[green]Connected to {ser.name} at {ser.baudrate} baud[/]\n")
-        console.print("[yellow]Type 'keyboard_mode' to enter keyboard listening mode.[/]")
         await asyncio.gather(read_from_port(ser), main_menu(ser))
     except serial.SerialException as e:
         console.print(f"[red]{e}[/]")

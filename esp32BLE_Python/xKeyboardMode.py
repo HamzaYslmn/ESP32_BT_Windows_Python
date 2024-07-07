@@ -8,14 +8,14 @@ console = Console()
 
 async def keyboard_listener(ser):
     keyboard_mode = True
-    console.print("[yellow]Entering keyboard listening mode. Press 'esc' to exit.[/]")
+    console.print("[yellow]Entering keyboard listening mode. Press 'esc' to exit and return to the main menu.[/]")
     
     pressed_keys = set()
     last_sent_time = 0
     send_interval = 0.01  # 10ms interval
 
     def on_key_event(e):
-        nonlocal pressed_keys, last_sent_time, keyboard_mode  # Add keyboard_mode to nonlocal declaration
+        nonlocal pressed_keys, last_sent_time, keyboard_mode
         if e.event_type == keyboard.KEY_DOWN:
             pressed_keys.add(e.name)
             if e.name == 'esc':  # Check if the pressed key is 'esc'
@@ -42,11 +42,7 @@ async def keyboard_listener(ser):
     send_task = asyncio.create_task(send_key_state())
 
     while keyboard_mode:
-        command = await asyncio.to_thread(input, "")
-        if command:
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f")[:-3]
-            console.print(f"[rgb(240,160,255)]{timestamp} - {command}[/]")
-            ser.write((command + '\n').encode('utf-8'))
+        await asyncio.sleep(0.001)  # Reduced polling to prevent blocking
 
     send_task.cancel()
     keyboard.unhook_all()
