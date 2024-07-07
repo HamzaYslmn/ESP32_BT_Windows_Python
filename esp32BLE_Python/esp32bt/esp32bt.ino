@@ -29,13 +29,11 @@ void loop() {
   
   // Handle serial data from USB/Serial
   handleSerial();
-  
-  delay(10); // Short delay to prevent busy-waiting
 }
 
 void handleBluetooth() {
   if (SerialBT.available() > 0) {
-    String received = SerialBT.readString();
+    String received = SerialBT.readStringUntil('\n');
     received.trim();
     SerialBT.println("BT Received: " + received);
     SerialBT.println("BT Echo: " + received);
@@ -44,7 +42,7 @@ void handleBluetooth() {
 
 void handleSerial() {
   if (Serial.available() > 0) {
-    String received = Serial.readString();
+    String received = Serial.readStringUntil('\n');
     received.trim();
     Serial.println("Received: " + received);
     Serial.println("Serial Echo: " + received);

@@ -21,6 +21,8 @@ def select_port(port_list):
         selection = input("Select the port number: ")
         if selection.isdigit() and int(selection) in port_list:
             return port_list[int(selection)]
+        elif selection == "0" or len(selection) == 0:
+            list_ports()
         else:
             print("Invalid selection, please try again.")
 
@@ -38,8 +40,13 @@ async def read_from_port(ser):
 async def write_to_port(ser):
     while True:
         command = await asyncio.to_thread(input, "")
-        ser.write(command.encode('utf-8'))
-        await asyncio.sleep(2)
+        if command == "cls":
+            console.clear()
+            continue
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        console.print(f"[rgb(240,160,255)]{timestamp} - {command}[/]")
+        ser.write((command + '\n').encode('utf-8'))
+        await asyncio.sleep(0.0001)
 
 async def main():
     port_list = list_ports()
