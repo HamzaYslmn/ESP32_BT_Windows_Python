@@ -11,9 +11,9 @@ console = Console()
 def list_ports():
     ports = serial.tools.list_ports.comports()
     port_list = {}
-    print("Available COM Ports:")
+    console.print("Available COM Ports:")
     for index, port in enumerate(ports, start=1):
-        print(f"{index} - {port.device}: {port.description}")
+        console.print(f"{index} - {port.device}: {port.description}")
         port_list[index] = port.device
     return port_list
 
@@ -26,7 +26,7 @@ def select_port(port_list):
             console.clear()
             list_ports()
         else:
-            print("Invalid selection, please try again.")
+            console.print("Invalid selection, please try again.")
 
 async def read_from_port(ser):
     while True:
@@ -44,16 +44,14 @@ async def write_to_port(ser):
         command = await asyncio.to_thread(input, "")
         if command == "cls":
             console.clear()
-            continue
         elif command == "latency_test":
             await latency_test(ser)
-            continue
         elif command == "mbps_test":
             await mbps_test(ser)
-            continue
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f")[:-3]
-        console.print(f"[rgb(240,160,255)]{timestamp} - {command}[/]")
-        ser.write((command + '\n').encode('utf-8'))
+        else:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f")[:-3]
+            console.print(f"[rgb(240,160,255)]{timestamp} - {command}[/]")
+            ser.write((command + '\n').encode('utf-8'))
         await asyncio.sleep(0.0001)
 
 async def main():
@@ -64,6 +62,7 @@ async def main():
         return
     try:
         ser = serial.Serial(port, BAUDRATE)
+        console.clear()
         console.print(f"[green]Connected to {ser.name} at {ser.baudrate} baud[/]\n")
         await asyncio.gather(read_from_port(ser), write_to_port(ser))
     except serial.SerialException as e:
