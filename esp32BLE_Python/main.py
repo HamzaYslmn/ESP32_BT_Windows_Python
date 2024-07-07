@@ -4,6 +4,7 @@ import asyncio
 from rich.console import Console
 from datetime import datetime
 from xTests import latency_test, mbps_test
+import keyboard
 
 BAUDRATE = 115200
 console = Console()
@@ -39,7 +40,32 @@ async def read_from_port(ser):
                 console.print(f"[rgb(50,240,160)]{timestamp} - {response}[/]")
         await asyncio.sleep(0.0001)
 
-async def write_to_port(ser):
+async def keyboard_listener(ser):
+    keyboard_mode = True
+    console.print("[yellow]Entering keyboard listening mode. Type 'exit_keyboard_mode' to return to main menu.[/]")
+    
+    def on_key_event(e):
+        if e.event_type == keyboard.KEY_DOWN:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f")[:-3]
+            console.print(f"[rgb(240,160,255)]{timestamp} - {e.name}[/]")
+            ser.write((e.name + '\n').encode('utf-8'))
+
+    keyboard.on_press(on_key_event)
+
+    while keyboard_mode:
+        command = await asyncio.to_thread(input, "")
+        if command == "exit_keyboard_mode":
+            keyboard_mode = False
+        elif command:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f")[:-3]
+            console.print(f"[rgb(240,160,255)]{timestamp} - {command}[/]")
+            ser.write((command + '\n').encode('utf-8'))
+        await asyncio.sleep(0.0001)
+
+    keyboard.unhook_all()
+    console.print("[yellow]Exited keyboard listening mode.[/]")
+
+async def main_menu(ser):
     while True:
         command = await asyncio.to_thread(input, "")
         if command == "cls":
@@ -48,6 +74,8 @@ async def write_to_port(ser):
             await latency_test(ser)
         elif command == "mbps_test":
             await mbps_test(ser)
+        elif command == "keyboard_mode":
+            await keyboard_listener(ser)
         else:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f")[:-3]
             console.print(f"[rgb(240,160,255)]{timestamp} - {command}[/]")
@@ -64,7 +92,8 @@ async def main():
         ser = serial.Serial(port, BAUDRATE)
         console.clear()
         console.print(f"[green]Connected to {ser.name} at {ser.baudrate} baud[/]\n")
-        await asyncio.gather(read_from_port(ser), write_to_port(ser))
+        console.print("[yellow]Type 'keyboard_mode' to enter keyboard listening mode.[/]")
+        await asyncio.gather(read_from_port(ser), main_menu(ser))
     except serial.SerialException as e:
         console.print(f"[red]{e}[/]")
     finally:
