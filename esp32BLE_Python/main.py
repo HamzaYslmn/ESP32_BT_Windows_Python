@@ -55,6 +55,7 @@ async def terminal_mode(ser):
         console.print(f"[rgb(240,160,255)]{timestamp} - {command}[/]")
         try:
             ser.write((command + '\n').encode('utf-8'))
+            ser.flush()
         except Exception as e:
             console.print(f"[red]Error writing to port: {e}[/]")
     console.print("[yellow]Returning to main menu...[/]")

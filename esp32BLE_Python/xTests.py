@@ -11,7 +11,7 @@ async def latency_test(ser):
     console.print(f"[cyan]Test message size: {len(test_message)} bytes[/]")
     
     for i in range(100):
-        await asyncio.sleep(0.05)  # Increased sleep time to avoid buffer overflow
+        await asyncio.sleep(0.001)  # Reduced sleep time for better responsiveness
         start_time = time.perf_counter()
         try:
             ser.write(test_message)
