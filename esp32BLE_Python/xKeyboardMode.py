@@ -15,7 +15,7 @@ async def keyboard_listener(ser):
     send_interval = 0.01  # Increased to 10ms to avoid overwhelming the buffer
 
     def on_key_event(e):
-        nonlocal pressed_keys, last_sent_time, keyboard_mode
+        nonlocal keyboard_mode
         if e.event_type == keyboard.KEY_DOWN:
             pressed_keys.add(e.name)
             if e.name == 'esc':  # Check if the pressed key is 'esc'
@@ -27,31 +27,31 @@ async def keyboard_listener(ser):
     keyboard.hook(on_key_event)
 
     async def send_key_state():
-        nonlocal pressed_keys, last_sent_time
+        nonlocal last_sent_time
         while keyboard_mode:
             current_time = time.time()
             if current_time - last_sent_time >= send_interval:
+                if pressed_keys:
+                    key_string = '+'.join(sorted(pressed_keys))
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f")[:-3]
+                    console.print(f"[rgb(240,160,255)]{timestamp} - {key_string}[/]")
+                else:
+                    key_string = 'none'
+                
                 try:
-                    if pressed_keys:
-                        key_string = '+'.join(sorted(pressed_keys))
-                        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f")[:-3]
-                        console.print(f"[rgb(240,160,255)]{timestamp} - {key_string}[/]")
-                    else:
-                        key_string = 'none'
-
                     ser.write((key_string + '\n').encode('utf-8'))
                     ser.flush()  # Ensure data is sent out immediately
                 except Exception as e:
                     console.print(f"[red]Error writing to port: {e}[/]")
-
+                
                 last_sent_time = current_time
             await asyncio.sleep(0.004)  # 4ms sleep to allow other tasks to run
-            
+
     send_task = asyncio.create_task(send_key_state())
 
     while keyboard_mode:
         await asyncio.sleep(0.004)  # 4ms polling to prevent blocking
-
+        
     send_task.cancel()
     keyboard.unhook_all()
     console.print("[yellow]Exited keyboard listening mode.[/]")
