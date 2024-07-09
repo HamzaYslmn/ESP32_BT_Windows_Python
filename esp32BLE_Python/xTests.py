@@ -41,14 +41,19 @@ async def latency_test(ser):
     ser.reset_input_buffer()
 
 async def mbps_test(ser):
-    data = b'0' * 1000000  # 1MB of data
-    start_time = time.perf_counter()
+    data = b'0' * 10000  # 10KB of data, smaller chunk size for USB
+    num_chunks = 100  # Send 100 chunks for a total of 1MB
+    console.print("[yellow]Starting Mbps test...[/]")
     try:
-        ser.write(data)
-        ser.flush()  # Ensure data is sent out immediately
-        ser.readline()  # Wait for acknowledgement
-        duration = time.perf_counter() - start_time
-        mbps = (len(data) * 8) / (duration * 1000000)
+        start_time = time.perf_counter()
+        for _ in range(num_chunks):
+            ser.write(data)
+            ser.flush()  # Ensure data is sent out immediately
+        end_time = time.perf_counter()
+
+        duration = end_time - start_time
+        total_data = len(data) * num_chunks
+        mbps = (total_data * 8) / (duration * 1000000)
         console.print(f"[green]Speed: {mbps:.2f} Mbps[/]")
     except Exception as e:
         console.print(f"[red]Error during Mbps test: {e}[/]")
