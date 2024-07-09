@@ -31,18 +31,22 @@ async def keyboard_listener(ser):
         while keyboard_mode:
             current_time = time.time()
             if current_time - last_sent_time >= send_interval:
-                if pressed_keys:
-                    key_string = '+'.join(sorted(pressed_keys))
-                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f")[:-3]
-                    console.print(f"[rgb(240,160,255)]{timestamp} - {key_string}[/]")
-                    try:
-                        ser.write((key_string + '\n').encode('utf-8'))
-                        ser.flush()  # Ensure data is sent out immediately
-                    except Exception as e:
-                        console.print(f"[red]Error writing to port: {e}[/]")
+                try:
+                    if pressed_keys:
+                        key_string = '+'.join(sorted(pressed_keys))
+                        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f")[:-3]
+                        console.print(f"[rgb(240,160,255)]{timestamp} - {key_string}[/]")
+                    else:
+                        key_string = 'none'
+
+                    ser.write((key_string + '\n').encode('utf-8'))
+                    ser.flush()  # Ensure data is sent out immediately
+                except Exception as e:
+                    console.print(f"[red]Error writing to port: {e}[/]")
+
                 last_sent_time = current_time
             await asyncio.sleep(0.004)  # 4ms sleep to allow other tasks to run
-
+            
     send_task = asyncio.create_task(send_key_state())
 
     while keyboard_mode:
