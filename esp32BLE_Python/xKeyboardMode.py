@@ -12,7 +12,7 @@ async def keyboard_listener(ser):
     
     pressed_keys = set()
     last_sent_time = 0
-    send_interval = 0.05  # Increased to 50ms to avoid overwhelming the buffer
+    send_interval = 0.01  # Increased to 10ms to avoid overwhelming the buffer
 
     def on_key_event(e):
         nonlocal pressed_keys, last_sent_time, keyboard_mode
@@ -51,4 +51,3 @@ async def keyboard_listener(ser):
     send_task.cancel()
     keyboard.unhook_all()
     console.print("[yellow]Exited keyboard listening mode.[/]")
-
