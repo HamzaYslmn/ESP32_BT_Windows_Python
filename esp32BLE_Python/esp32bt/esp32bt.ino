@@ -35,7 +35,6 @@ void handleBluetooth() {
   if (SerialBT.available() > 0) {
     String received = SerialBT.readStringUntil('\n');
     received.trim();
-    SerialBT.println("BT Received: " + received);
     SerialBT.println("BT Echo: " + received);
   }
 }
@@ -44,7 +43,6 @@ void handleSerial() {
   if (Serial.available() > 0) {
     String received = Serial.readStringUntil('\n');
     received.trim();
-    Serial.println("Received: " + received);
     Serial.println("Serial Echo: " + received);
   }
 }
