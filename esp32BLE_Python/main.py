@@ -97,7 +97,7 @@ async def main():
         console.print("[red]No port selected[/]")
         return
     try:
-        ser = serial.Serial(port, BAUDRATE, timeout=0.004)
+        ser = serial.Serial(port, BAUDRATE, timeout=5)  # Increased timeout value
         ser.reset_input_buffer()
         ser.reset_output_buffer()
         console.clear()
