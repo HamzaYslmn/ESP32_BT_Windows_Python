@@ -16,12 +16,13 @@ async def latency_test(ser):
         try:
             ser.write(test_message)
             ser.flush()  # Ensure data is sent out immediately
-            response = ser.readline().decode('utf-8').strip()
-            end_time = time.perf_counter()
-        
-            if "ping" in response:
-                latencies.append((end_time - start_time) * 1000)
-            
+            while True:
+                if ser.in_waiting > 0:
+                    response = ser.readline().decode('utf-8').strip()
+                    if "ping" in response:
+                        end_time = time.perf_counter()
+                        latencies.append((end_time - start_time) * 1000)
+                        break
             if i % 10 == 9:
                 console.print(f"[cyan]Completed {i+1} iterations[/]")
         except Exception as e:
