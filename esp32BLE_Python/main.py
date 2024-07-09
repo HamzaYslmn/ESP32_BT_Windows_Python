@@ -35,12 +35,15 @@ async def read_from_port(ser):
             if ser.in_waiting > 0:
                 response = ser.read(ser.in_waiting).decode('utf-8').strip()
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f")[:-3]
-                for line in response.split('\n'):
-                    if line:
-                        if line.startswith("BT "):
-                            console.print(f"[rgb(50,160,240)]{timestamp} - {line}[/]")
+                for msg in response.split('\n'):
+                    
+                    if msg not in [".", "Online"]:
+                        
+                        if msg.startswith("BT "):
+                            console.print(f"[rgb(50,160,240)]{timestamp} - {msg}[/]")
                         else:
-                            console.print(f"[rgb(50,240,160)]{timestamp} - {line}[/]")
+                            console.print(f"[rgb(50,240,160)]{timestamp} - {msg}[/]")
+                            
         except Exception as e:
             console.print(f"[red]Error reading from port: {e}[/]")
         await asyncio.sleep(0.001)
