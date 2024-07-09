@@ -31,24 +31,32 @@ def select_port(port_list):
 
 async def read_from_port(ser):
     while True:
-        if ser.in_waiting > 0:
-            response = ser.readline().decode('utf-8').strip()
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f")[:-3]
-            if response.startswith("BT "):
-                console.print(f"[rgb(50,160,240)]{timestamp} - {response}[/]")
-            else:
-                console.print(f"[rgb(50,240,160)]{timestamp} - {response}[/]")
-        await asyncio.sleep(0.0001)
+        try:
+            if ser.in_waiting > 0:
+                response = ser.read(ser.in_waiting).decode('utf-8').strip()
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f")[:-3]
+                for line in response.split('\n'):
+                    if line:
+                        if line.startswith("BT "):
+                            console.print(f"[rgb(50,160,240)]{timestamp} - {line}[/]")
+                        else:
+                            console.print(f"[rgb(50,240,160)]{timestamp} - {line}[/]")
+        except Exception as e:
+            console.print(f"[red]Error reading from port: {e}[/]")
+        await asyncio.sleep(0.001)
 
 async def terminal_mode(ser):
     console.print("[green]Entering Terminal Mode... write 'esc' to return to the main menu.[/]")
     while True:
         command = await asyncio.to_thread(input, "")
-        if command == "esc":
+        if command == "esc" or command == "q":
             break
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f")[:-3]
         console.print(f"[rgb(240,160,255)]{timestamp} - {command}[/]")
-        ser.write((command + '\n').encode('utf-8'))
+        try:
+            ser.write((command + '\n').encode('utf-8'))
+        except Exception as e:
+            console.print(f"[red]Error writing to port: {e}[/]")
     console.print("[yellow]Returning to main menu...[/]")
 
 async def main_menu(ser):
@@ -89,15 +97,18 @@ async def main():
         console.print("[red]No port selected[/]")
         return
     try:
-        ser = serial.Serial(port, BAUDRATE)
+        ser = serial.Serial(port, BAUDRATE, timeout=0.5)  # Set timeout for reads
+        ser.reset_input_buffer()  # Clear input buffer before starting
+        ser.reset_output_buffer()  # Clear output buffer before starting
         console.clear()
         console.print(f"[green]Connected to {ser.name} at {ser.baudrate} baud[/]\n")
         await asyncio.gather(read_from_port(ser), main_menu(ser))
     except serial.SerialException as e:
         console.print(f"[red]{e}[/]")
     finally:
-        if 'ser' in locals():
+        if 'ser' in locals() and ser.is_open:
             ser.close()
+            console.print("[yellow]Serial port closed.[/]")
 
 if __name__ == "__main__":
     asyncio.run(main())

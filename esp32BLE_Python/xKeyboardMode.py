@@ -12,7 +12,7 @@ async def keyboard_listener(ser):
     
     pressed_keys = set()
     last_sent_time = 0
-    send_interval = 0.01  # 10ms interval
+    send_interval = 0.05  # Increased to 50ms to avoid overwhelming the buffer
 
     def on_key_event(e):
         nonlocal pressed_keys, last_sent_time, keyboard_mode
@@ -35,15 +35,20 @@ async def keyboard_listener(ser):
                     key_string = '+'.join(sorted(pressed_keys))
                     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f")[:-3]
                     console.print(f"[rgb(240,160,255)]{timestamp} - {key_string}[/]")
-                    ser.write((key_string + '\n').encode('utf-8'))
+                    try:
+                        ser.write((key_string + '\n').encode('utf-8'))
+                        ser.flush()  # Ensure data is sent out immediately
+                    except Exception as e:
+                        console.print(f"[red]Error writing to port: {e}[/]")
                 last_sent_time = current_time
-            await asyncio.sleep(0.001)  # 1ms sleep to allow other tasks to run
+            await asyncio.sleep(0.01)  # 10ms sleep to allow other tasks to run
 
     send_task = asyncio.create_task(send_key_state())
 
     while keyboard_mode:
-        await asyncio.sleep(0.001)  # Reduced polling to prevent blocking
+        await asyncio.sleep(0.01)  # 10ms polling to prevent blocking
 
     send_task.cancel()
     keyboard.unhook_all()
     console.print("[yellow]Exited keyboard listening mode.[/]")
+

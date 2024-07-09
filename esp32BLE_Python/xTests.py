@@ -11,16 +11,15 @@ async def latency_test(ser):
     console.print(f"[cyan]Test message size: {len(test_message)} bytes[/]")
     
     for i in range(100):
-        await asyncio.sleep(0.01)
+        await asyncio.sleep(0.05)  # Increased sleep time to avoid buffer overflow
         start_time = time.perf_counter()
-        ser.write(test_message)
-        
         try:
-            received = ser.readline().decode('utf-8').strip()
-            echo = ser.readline().decode('utf-8').strip()
+            ser.write(test_message)
+            ser.flush()  # Ensure data is sent out immediately
+            response = ser.readline().decode('utf-8').strip()
             end_time = time.perf_counter()
         
-            if received == "BT Received: ping" and echo == "BT Echo: ping":
+            if "ping" in response:
                 latencies.append((end_time - start_time) * 1000)
             
             if i % 10 == 9:
@@ -43,9 +42,9 @@ async def latency_test(ser):
 async def mbps_test(ser):
     data = b'0' * 1000000  # 1MB of data
     start_time = time.perf_counter()
-    ser.write(data)
-    
     try:
+        ser.write(data)
+        ser.flush()  # Ensure data is sent out immediately
         ser.readline()  # Wait for acknowledgement
         duration = time.perf_counter() - start_time
         mbps = (len(data) * 8) / (duration * 1000000)

@@ -29,6 +29,8 @@ void loop() {
   
   // Handle serial data from USB/Serial
   handleSerial();
+
+  delay(4);
 }
 
 void handleBluetooth() {
