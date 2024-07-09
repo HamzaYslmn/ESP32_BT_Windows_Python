@@ -98,9 +98,9 @@ async def main():
         console.print("[red]No port selected[/]")
         return
     try:
-        ser = serial.Serial(port, BAUDRATE, timeout=0.5)  # Set timeout for reads
-        ser.reset_input_buffer()  # Clear input buffer before starting
-        ser.reset_output_buffer()  # Clear output buffer before starting
+        ser = serial.Serial(port, BAUDRATE, timeout=0.004)
+        ser.reset_input_buffer()
+        ser.reset_output_buffer()
         console.clear()
         console.print(f"[green]Connected to {ser.name} at {ser.baudrate} baud[/]\n")
         await asyncio.gather(read_from_port(ser), main_menu(ser))

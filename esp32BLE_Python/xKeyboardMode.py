@@ -41,12 +41,12 @@ async def keyboard_listener(ser):
                     except Exception as e:
                         console.print(f"[red]Error writing to port: {e}[/]")
                 last_sent_time = current_time
-            await asyncio.sleep(0.004)  # 10ms sleep to allow other tasks to run
+            await asyncio.sleep(0.004)  # 4ms sleep to allow other tasks to run
 
     send_task = asyncio.create_task(send_key_state())
 
     while keyboard_mode:
-        await asyncio.sleep(0.004)  # 10ms polling to prevent blocking
+        await asyncio.sleep(0.004)  # 4ms polling to prevent blocking
 
     send_task.cancel()
     keyboard.unhook_all()
