@@ -3,83 +3,40 @@
 #include <BLEUtils.h>
 #include <BLE2902.h>
 
+#define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
+#define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+
 BLEServer* pServer = NULL;
 BLECharacteristic* pCharacteristic = NULL;
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
+String lastValue = "";
 
-#define SERVICE_UUID        "0000180D-0000-1000-8000-00805F9B34FB"
-#define CHARACTERISTIC_UUID "00002A37-0000-1000-8000-00805F9B34FB"
+TaskHandle_t Task1;  // BLE handling task
+TaskHandle_t Task2;  // Serial handling task
+TaskHandle_t Task3;  // Online print task
 
 class MyServerCallbacks: public BLEServerCallbacks {
     void onConnect(BLEServer* pServer) {
       deviceConnected = true;
-      Serial.println("Connected to BLE device");
     };
 
     void onDisconnect(BLEServer* pServer) {
       deviceConnected = false;
-      Serial.println("Disconnected from BLE device");
     }
 };
 
 class MyCallbacks: public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic *pCharacteristic) {
-      String rxValue = pCharacteristic->getValue().c_str();
-      if (rxValue.length() > 0) {
-        Serial.print("Received: ");
-        Serial.println(rxValue);
-        String response = "BT Echo: " + rxValue;
-        pCharacteristic->setValue(response.c_str());
+      String value = pCharacteristic->getValue();
+      if (value.length() > 0 && value != lastValue) {
+        Serial.println("Received: " + String(value.c_str()));
+        lastValue = value;
+        pCharacteristic->setValue("BT Echo: " + value);
         pCharacteristic->notify();
       }
     }
 };
-
-void bleTask(void * parameter) {
-  for(;;) {
-    if (deviceConnected) {
-      // BLE device is connected, handle any BLE-specific tasks here
-    }
-    
-    if (!deviceConnected && oldDeviceConnected) {
-      delay(500); // give the bluetooth stack the chance to get things ready
-      pServer->startAdvertising(); // restart advertising
-      Serial.println("Start advertising");
-      oldDeviceConnected = deviceConnected;
-    }
-    
-    if (deviceConnected && !oldDeviceConnected) {
-      oldDeviceConnected = deviceConnected;
-    }
-    
-    vTaskDelay(pdMS_TO_TICKS(10)); // 10ms delay
-  }
-}
-
-void serialTask(void * parameter) {
-  for(;;) {
-    if (Serial.available()) {
-      String input = Serial.readStringUntil('\n');
-      input.trim();
-      Serial.print("Serial Echo: ");
-      Serial.println(input);
-      
-      if (deviceConnected) {
-        pCharacteristic->setValue(input.c_str());
-        pCharacteristic->notify();
-      }
-    }
-    vTaskDelay(pdMS_TO_TICKS(4)); // 4ms delay
-  }
-}
-
-void onlineTask(void * parameter) {
-  for(;;) {
-    Serial.println("Online");
-    vTaskDelay(pdMS_TO_TICKS(1000)); // 1 second delay
-  }
-}
 
 void setup() {
   Serial.begin(115200);
@@ -120,35 +77,50 @@ void setup() {
   Serial.println("Waiting for a client connection to notify...");
 
   // Create tasks
-  xTaskCreatePinnedToCore(
-    bleTask,    // Function to implement the task
-    "BLETask",  // Name of the task
-    10000,      // Stack size in words
-    NULL,       // Task input parameter
-    1,          // Priority of the task
-    NULL,       // Task handle
-    1);         // Core where the task should run
-
-  xTaskCreatePinnedToCore(
-    serialTask, // Function to implement the task
-    "SerialTask", // Name of the task
-    10000,      // Stack size in words
-    NULL,       // Task input parameter
-    1,          // Priority of the task
-    NULL,       // Task handle
-    0);         // Core where the task should run
-
-  xTaskCreatePinnedToCore(
-    onlineTask, // Function to implement the task
-    "OnlineTask", // Name of the task
-    10000,      // Stack size in words
-    NULL,       // Task input parameter
-    1,          // Priority of the task
-    NULL,       // Task handle
-    0);         // Core where the task should run
+  xTaskCreatePinnedToCore(handleBLETask, "BLETask", 8192, NULL, 1, &Task1, 1);
+  xTaskCreatePinnedToCore(handleSerialTask, "SerialTask", 8192, NULL, 1, &Task2, 0);
+  xTaskCreatePinnedToCore(printOnlineTask, "OnlineTask", 8192, NULL, 1, &Task3, 0);
 }
 
 void loop() {
-  // Empty. Things are done in Tasks.
-  vTaskDelete(NULL);
+  vTaskDelete(NULL); // Delete loop task
+}
+
+void handleBLETask(void * pvParameters) {
+  while (true) {
+    // Disconnecting
+    if (!deviceConnected && oldDeviceConnected) {
+      delay(500); // Give the bluetooth stack the chance to get things ready
+      pServer->startAdvertising(); // Restart advertising
+      Serial.println("Start advertising");
+      oldDeviceConnected = deviceConnected;
+    }
+    // Connecting
+    if (deviceConnected && !oldDeviceConnected) {
+      oldDeviceConnected = deviceConnected;
+    }
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
+}
+
+void handleSerialTask(void * pvParameters) {
+  while (true) {
+    if (Serial.available()) {
+      String input = Serial.readStringUntil('\n');
+      input.trim();
+      Serial.println("Serial Echo: " + input);
+      if (deviceConnected) {
+        pCharacteristic->setValue(input.c_str());
+        pCharacteristic->notify();
+      }
+    }
+    vTaskDelay(pdMS_TO_TICKS(10));
+  }
+}
+
+void printOnlineTask(void * pvParameters) {
+  while (true) {
+    Serial.println("Online");
+    vTaskDelay(pdMS_TO_TICKS(1000));
+  }
 }

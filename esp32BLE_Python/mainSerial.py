@@ -25,7 +25,7 @@ def select_port(port_list):
             return port_list[int(selection)]
         elif selection == "0" or len(selection) == 0:
             console.clear()
-            list_ports()
+            port_list = list_ports()
         else:
             console.print("Invalid selection, please try again.")
 

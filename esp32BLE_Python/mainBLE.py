@@ -6,14 +6,13 @@ import keyboard
 import time
 
 console = Console()
-
-SERVICE_UUID = "0000180D-0000-1000-8000-00805F9B34FB"  # Replace with your service UUID
-CHARACTERISTIC_UUID = "00002A37-0000-1000-8000-00805F9B34FB"  # Replace with your characteristic UUID
+SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
+CHARACTERISTIC_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8"
 
 async def list_devices():
     devices = await BleakScanner.discover()
     device_list = {}
-    console.print("Available Bluetooth Devices:")
+    console.print("Available BLE Devices:")
     for index, device in enumerate(devices, start=1):
         console.print(f"{index} - {device.name}: {device.address}")
         device_list[index] = device
@@ -26,7 +25,7 @@ async def select_device(device_list):
             return device_list[int(selection)]
         elif selection == "0" or len(selection) == 0:
             console.clear()
-            await list_devices()
+            device_list = await list_devices()
         else:
             console.print("Invalid selection, please try again.")
 
@@ -37,7 +36,7 @@ async def read_from_device(client):
             response = response.decode('utf-8').strip()
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f")[:-3]
             
-            if response not in ["x", "x"]:
+            if response not in [".", "Online"]:
                 if response.startswith("BT "):
                     console.print(f"[rgb(50,160,240)]{timestamp} - {response}[/]")
                 else:
@@ -45,13 +44,15 @@ async def read_from_device(client):
                     
         except Exception as e:
             console.print(f"[red]Error reading from device: {e}[/]")
+            if "Not connected" in str(e):
+                break
         await asyncio.sleep(0.001)
 
 async def terminal_mode(client):
     console.print("[green]Entering Terminal Mode... write 'esc' to return to the main menu.[/]")
     while True:
         command = await asyncio.to_thread(input, "")
-        if command in ["esc", "q"]:
+        if command == "esc" or command == "q":
             break
         if command == "cls":
             console.clear()
