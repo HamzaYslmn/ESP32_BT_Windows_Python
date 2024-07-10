@@ -4,7 +4,7 @@
 BluetoothSerial SerialBT;
 bool connected = false;
 unsigned long lastReconnectAttempt = 0;
-const unsigned long reconnectInterval = 5000; // 5 seconds
+const unsigned long reconnectInterval = 5005; // Slightly more than 5 seconds to avoid overlap
 
 TaskHandle_t Task1;  // Bluetooth handling task
 TaskHandle_t Task2;  // Serial handling task
@@ -81,7 +81,7 @@ void attemptReconnect() {
   if (currentMillis - lastReconnectAttempt >= reconnectInterval) {
     lastReconnectAttempt = currentMillis;
     if (!SerialBT.hasClient()) {
-      Serial.print(".");
+      Serial.println(".");
       SerialBT.end();
       delay(100);
       SerialBT.begin("ESP32_BT");

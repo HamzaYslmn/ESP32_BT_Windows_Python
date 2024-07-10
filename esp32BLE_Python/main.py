@@ -35,7 +35,7 @@ async def read_from_port(ser):
             if ser.in_waiting > 0:
                 response = ser.readline().decode('utf-8').strip()
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f")[:-3]
-                if response not in [".", "Online"]:
+                if response not in ["x", "x"]:
                     if response.startswith("BT "):
                         console.print(f"[rgb(50,160,240)]{timestamp} - {response}[/]")
                     else:
