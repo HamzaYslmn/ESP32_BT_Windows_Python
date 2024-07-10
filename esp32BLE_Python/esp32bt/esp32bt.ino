@@ -10,7 +10,6 @@ BLEServer* pServer = NULL;
 BLECharacteristic* pCharacteristic = NULL;
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
-String lastValue = "";
 
 TaskHandle_t Task1;  // BLE handling task
 TaskHandle_t Task2;  // Serial handling task
@@ -29,9 +28,8 @@ class MyServerCallbacks: public BLEServerCallbacks {
 class MyCallbacks: public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic *pCharacteristic) {
       String value = pCharacteristic->getValue();
-      if (value.length() > 0 && value != lastValue) {
+      if (value.length() > 0) {
         Serial.println("Received: " + String(value.c_str()));
-        lastValue = value;
         pCharacteristic->setValue("BT Echo: " + value);
         pCharacteristic->notify();
       }
