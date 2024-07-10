@@ -103,7 +103,7 @@ void handleBLETask(void * pvParameters) {
 
 void handleSerialTask(void * pvParameters) {
   while (true) {
-    if (Serial.available()) {
+    if (Serial.available() > 0) {
       String input = Serial.readStringUntil('\n');
       input.trim();
       Serial.println("Serial Echo: " + input);
