@@ -1,52 +1,49 @@
-import serial
-import serial.tools.list_ports
 import asyncio
+from bleak import BleakClient, BleakScanner
 from rich.console import Console
 from datetime import datetime
 import keyboard
 import time
 
-BAUDRATE = 115200
 console = Console()
+device_address = None
+CHARACTERISTIC_UUID = "0000ffe1-0000-1000-8000-00805f9b34fb"  # Update with your characteristic UUID
 
-def list_ports():
-    ports = serial.tools.list_ports.comports()
-    port_list = {}
-    console.print("Available COM Ports:")
-    for index, port in enumerate(ports, start=1):
-        console.print(f"{index} - {port.device}: {port.description}")
-        port_list[index] = port.device
-    return port_list
+def detection_callback(device, advertisement_data):
+    global device_address
+    console.print(f"Discovered device: {device.name}, {device.address}")
+    if "ESP32_BT" in device.name:  # Update with the actual name of your ESP32 device
+        device_address = device.address
+        console.print(f"Found target device: {device_address}")
 
-def select_port(port_list):
-    while True:
-        selection = input("Select the port number: ")
-        if selection.isdigit() and int(selection) in port_list:
-            return port_list[int(selection)]
-        elif selection == "0" or len(selection) == 0:
-            console.clear()
-            list_ports()
-        else:
-            console.print("Invalid selection, please try again.")
+async def connect_device():
+    global device_address
+    device = await BleakScanner.find_device_by_address(device_address, timeout=20.0)
+    if not device:
+        console.print(f"[red]Failed to connect to device at address {device_address}[/]")
+        return None
+    client = BleakClient(device)
+    try:
+        await client.connect()
+        console.print(f"[green]Connected to {device.address}[/]")
+        return client
+    except Exception as e:
+        console.print(f"[red]Failed to connect: {e}[/]")
+        return None
 
-async def read_from_port(ser):
-    while True:
-        try:
-            if ser.in_waiting > 0:
-                response = ser.readline().decode('utf-8').strip()
-                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f")[:-3]
-                
-                if response not in [".", "Online"]:
-                    if response.startswith("BT "):
-                        console.print(f"[rgb(50,160,240)]{timestamp} - {response}[/]")
-                    else:
-                        console.print(f"[rgb(50,240,160)]{timestamp} - {response}[/]")
-                        
-        except Exception as e:
-            console.print(f"[red]Error reading from port: {e}[/]")
-        await asyncio.sleep(0.001)
+async def read_from_device(client):
+    def callback(sender: int, data: bytearray):
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f")[:-3]
+        response = data.decode('utf-8').strip()
+        if response not in [".", "Online"]:
+            if response.startswith("BT "):
+                console.print(f"[rgb(50,160,240)]{timestamp} - {response}[/]")
+            else:
+                console.print(f"[rgb(50,240,160)]{timestamp} - {response}[/]")
 
-async def terminal_mode(ser):
+    await client.start_notify(CHARACTERISTIC_UUID, callback)
+
+async def terminal_mode(client):
     console.print("[green]Entering Terminal Mode... write 'esc' to return to the main menu.[/]")
     while True:
         command = await asyncio.to_thread(input, "")
@@ -57,13 +54,12 @@ async def terminal_mode(ser):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S:%f")[:-3]
         console.print(f"[rgb(240,160,255)]{timestamp} - {command}[/]")
         try:
-            ser.write((command + '\n').encode('utf-8'))
-            ser.flush()
+            await client.write_gatt_char(CHARACTERISTIC_UUID, (command + '\n').encode('utf-8'))
         except Exception as e:
-            console.print(f"[red]Error writing to port: {e}[/]")
+            console.print(f"[red]Error writing to device: {e}[/]")
     console.print("[yellow]Returning to main menu...[/]")
-    
-async def keyboard_listener(ser):
+
+async def keyboard_listener(client):
     keyboard_mode = True
     console.print("[yellow]Entering keyboard listening mode. Press 'esc' to exit and return to the main menu.[/]")
     
@@ -96,10 +92,9 @@ async def keyboard_listener(ser):
                     key_string = 'none'
                 
                 try:
-                    ser.write((key_string + '\n').encode('utf-8'))
-                    ser.flush()  # Ensure data is sent out immediately
+                    await client.write_gatt_char(CHARACTERISTIC_UUID, (key_string + '\n').encode('utf-8'))
                 except Exception as e:
-                    console.print(f"[red]Error writing to port: {e}[/]")
+                    console.print(f"[red]Error writing to device: {e}[/]")
                 
                 last_sent_time = current_time
             await asyncio.sleep(0.004)  # 4ms sleep to allow other tasks to run
@@ -112,8 +107,8 @@ async def keyboard_listener(ser):
     send_task.cancel()
     keyboard.unhook_all()
     console.print("[yellow]Exited keyboard listening mode.[/]")
-    
-async def latency_test(ser):
+
+async def latency_test(client):
     latencies = []
     console.print("[yellow]Starting latency test...[/]")
     test_message = b'ping\n'
@@ -123,15 +118,14 @@ async def latency_test(ser):
         await asyncio.sleep(0.001)  # Reduced sleep time for better responsiveness
         start_time = time.perf_counter()
         try:
-            ser.write(test_message)
-            ser.flush()  # Ensure data is sent out immediately
+            await client.write_gatt_char(CHARACTERISTIC_UUID, test_message)
             while True:
-                if ser.in_waiting > 0:
-                    response = ser.readline().decode('utf-8').strip()
-                    if "ping" in response:
-                        end_time = time.perf_counter()
-                        latencies.append((end_time - start_time) * 1000)
-                        break
+                await asyncio.sleep(0.004)  # 4ms sleep to allow other tasks to run
+                response = await client.read_gatt_char(CHARACTERISTIC_UUID)
+                if "ping" in response.decode('utf-8'):
+                    end_time = time.perf_counter()
+                    latencies.append((end_time - start_time) * 1000)
+                    break
             if i % 10 == 9:
                 console.print(f"[cyan]Completed {i+1} iterations[/]")
         except Exception as e:
@@ -147,17 +141,15 @@ async def latency_test(ser):
         console.print(f"[yellow]Max Latency: {max_lat:.2f} ms[/]")
     else:
         console.print("[red]No valid latency measurements were recorded.[/]")
-    ser.reset_input_buffer()
 
-async def mbps_test(ser):
+async def mbps_test(client):
     data = b'0' * 10000  # 10KB of data, smaller chunk size for USB
     num_chunks = 100  # Send 100 chunks for a total of 1MB
     console.print("[yellow]Starting Mbps test...[/]")
     try:
         start_time = time.perf_counter()
         for _ in range(num_chunks):
-            ser.write(data)
-            ser.flush()  # Ensure data is sent out immediately
+            await client.write_gatt_char(CHARACTERISTIC_UUID, data)
         end_time = time.perf_counter()
 
         duration = end_time - start_time
@@ -166,10 +158,8 @@ async def mbps_test(ser):
         console.print(f"[green]Speed: {mbps:.2f} Mbps[/]")
     except Exception as e:
         console.print(f"[red]Error during Mbps test: {e}[/]")
-    
-    ser.reset_input_buffer()
 
-async def main_menu(ser):
+async def main_menu(client):
     while True:
         console.print("\nMain Menu:")
         console.print("1 - Terminal Mode")
@@ -181,16 +171,16 @@ async def main_menu(ser):
         command = await asyncio.to_thread(input, "Select a mode: ")
         
         if command == "1":
-            await terminal_mode(ser)
+            await terminal_mode(client)
 
         elif command == "2":
-            await keyboard_listener(ser)
+            await keyboard_listener(client)
 
         elif command == "3":
-            await mbps_test(ser)
+            await mbps_test(client)
 
         elif command == "4":
-            await latency_test(ser)
+            await latency_test(client)
 
         elif command == "":
             console.clear()
@@ -201,24 +191,23 @@ async def main_menu(ser):
             console.clear()
 
 async def main():
-    port_list = list_ports()
-    port = select_port(port_list)
-    if not port:
-        console.print("[red]No port selected[/]")
+    console.print("Scanning for devices...")
+    devices = await BleakScanner.discover()
+    for device in devices:
+        detection_callback(device, None)
+    
+    if not device_address:
+        console.print("[red]No target device found[/]")
         return
-    try:
-        ser = serial.Serial(port, BAUDRATE, timeout=5)  # Increased timeout value
-        ser.reset_input_buffer()
-        ser.reset_output_buffer()
-        console.clear()
-        console.print(f"[green]Connected to {ser.name} at {ser.baudrate} baud[/]\n")
-        await asyncio.gather(read_from_port(ser), main_menu(ser))
-    except serial.SerialException as e:
-        console.print(f"[red]{e}[/]")
-    finally:
-        if 'ser' in locals() and ser.is_open:
-            ser.close()
-            console.print("[yellow]Serial port closed.[/]")
+    
+    client = await connect_device()
+    if not client:
+        return
+    
+    await asyncio.gather(read_from_device(client), main_menu(client))
+    
+    await client.disconnect()
+    console.print("[yellow]Disconnected from Bluetooth device.[/]")
 
 if __name__ == "__main__":
     asyncio.run(main())
