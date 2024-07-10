@@ -4,7 +4,7 @@
 BluetoothSerial SerialBT;
 bool connected = false;
 unsigned long lastReconnectAttempt = 0;
-const unsigned long reconnectInterval = 5005; // Slightly more than 5 seconds to avoid overlap
+const unsigned long reconnectInterval = 5000; // Slightly more than 5 seconds to avoid overlap
 
 TaskHandle_t Task1;  // Bluetooth handling task
 TaskHandle_t Task2;  // Serial handling task
@@ -72,7 +72,7 @@ void handleBluetoothTask(void * pvParameters) {
       }
       attemptReconnect();
     }
-    vTaskDelay(pdMS_TO_TICKS(10)); // Adjust delay as needed
+    vTaskDelay(pdMS_TO_TICKS(4)); // Adjust delay as needed
   }
 }
 
@@ -83,7 +83,7 @@ void attemptReconnect() {
     if (!SerialBT.hasClient()) {
       Serial.println(".");
       SerialBT.end();
-      delay(100);
+      vTaskDelay(pdMS_TO_TICKS(1000)); 
       SerialBT.begin("ESP32_BT");
     }
   }
@@ -96,13 +96,13 @@ void handleSerialTask(void * pvParameters) {
       received.trim();
       Serial.println("Serial Echo: " + received);
     }
-    vTaskDelay(pdMS_TO_TICKS(10)); // Adjust delay as needed
+    vTaskDelay(pdMS_TO_TICKS(4));
   }
 }
 
 void printOnlineTask(void * pvParameters) {
   while (true) {
-    Serial.println("Online");
-    vTaskDelay(pdMS_TO_TICKS(1000)); // Delay for 1000ms
+    Serial.println("\nOnline");
+    vTaskDelay(pdMS_TO_TICKS(1000));
   }
 }
