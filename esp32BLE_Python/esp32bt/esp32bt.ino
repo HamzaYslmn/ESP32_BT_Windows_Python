@@ -102,7 +102,7 @@ void handleSerialTask(void * pvParameters) {
 
 void printOnlineTask(void * pvParameters) {
   while (true) {
-    Serial.println("\nOnline");
+    Serial.println("Online");
     vTaskDelay(pdMS_TO_TICKS(1000));
   }
 }
