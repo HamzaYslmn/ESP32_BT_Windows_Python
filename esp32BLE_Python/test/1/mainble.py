@@ -27,6 +27,14 @@ async def select_device(device_list):
         else:
             console.print("Invalid selection, please try again.")
 
+async def handle_notifications(sender, data):
+    console.print(f"Received: {data.decode('utf-8')}")
+
+async def send_user_input(client):
+    while True:
+        user_input = input("Enter a string to send to ESP32: ")
+        await client.write_gatt_char(CHARACTERISTIC_UUID, user_input.encode())
+
 async def run():
     device_list = await list_devices()
     selected_device = await select_device(device_list)
@@ -48,14 +56,14 @@ async def run():
             console.print(f"Service {SERVICE_UUID} not found")
             return
 
-        def handle_data(sender, data):
-            console.print(f"Received: {data.decode('utf-8')}")
+        # Start handling notifications
+        await client.start_notify(CHARACTERISTIC_UUID, handle_notifications)
 
-        await client.start_notify(CHARACTERISTIC_UUID, handle_data)
+        # Start user input handling in a separate task
+        asyncio.create_task(send_user_input(client))
 
+        # Keep the script running to continue receiving notifications
         while True:
-            user_input = input("Enter a string to send to ESP32: ")
-            await client.write_gatt_char(CHARACTERISTIC_UUID, user_input.encode())
             await asyncio.sleep(1)
 
 asyncio.run(run())
